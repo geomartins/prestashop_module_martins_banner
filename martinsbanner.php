@@ -2,6 +2,9 @@
 if (!defined('_PS_VERSION_')) {
     exit;
 }
+
+
+use Language;
 class MartinsBanner extends Module{
 
     public function __construct()
@@ -35,16 +38,18 @@ class MartinsBanner extends Module{
             Shop::setContext(Shop::CONTEXT_ALL);
         }
     
+        include_once($this->local_path.'sql/install.php');
         return parent::install() &&
             $this->registerHook('displayHome') &&
-            $this->registerHook('actionFrontControllerSetMedia') &&
-            Configuration::updateValue('MARTINSBANNER_URL', 'my friend');
+            // $this->registerHook('actionFrontControllerSetMedia') &&
+            Configuration::updateValue('MARTINSBANNER_URL', 'my friend') && $this->installTab();
     }
 
     public function uninstall()
     {
+        include_once($this->local_path.'sql/uninstall.php');
         if (!parent::uninstall() ||
-            !Configuration::deleteByName('MYMODULE_NAME')
+            !Configuration::deleteByName('MYMODULE_NAME') || !$this->uninstallTab()
         ) {
             return false;
         }
@@ -140,12 +145,110 @@ class MartinsBanner extends Module{
 
     public function hookDisplayHome($params)
     {
+        //return 'Shit is real';
+
         $this->context->smarty->assign([
             'martins_banner_url' => Configuration::get('MARTINSBANNER_URL'),
             'martins_banner_link' => $this->context->link->getModuleLink('martinsbanner', 'display')
         ]);
 
         return $this->display(__FILE__, '/views/templates/hook/martinsbanner.tpl');
+    }
+
+
+    // public function hookHeader(){  //[Head Section]
+    //     $this->context->controller->addCSS(array(
+    //         $this->_path.'views/css/martinsbanner.css'
+    //     ));   
+    //     $this->context->controller->addJS(array(
+    //         $this->_path.'views/js/martinsbanner.js'
+    //     ));   
+    // }
+
+    public function hookHeader(){  //[Head Section]
+
+        Media::addJsDef(array(
+            'mb_ajax' => $this->_path.'/ajax.php',
+        ));
+        $this->context->controller->addCSS(array(
+            $this->_path.'views/css/martinsbanner.css'
+        ));   
+        $this->context->controller->addJS(array(
+            $this->_path.'views/js/martinsbanner.js'
+        ));   
+    }
+
+
+    // public function hookActionFrontControllerSetMedia()
+    // {
+
+
+
+    //     $this->context->controller->registerStylesheet(
+    //         'martinsbanner-style',
+    //         $this->_path.'views/css/martinsbanner.css',
+    //         [
+    //             'media' => 'all',
+    //             'priority' => 1000,
+    //         ]
+    //     );
+
+    //     $this->context->controller->registerJavascript(
+    //         'martinsbanner-javascript',
+    //         $this->_path.'views/js/martinsbanner.js',
+    //         [
+    //             'position' => 'bottom',
+    //             'priority' => 1000,
+    //         ]
+    //     );
+    // }
+
+
+
+    private function installTab()
+    {
+        $tabId = (int) Tab::getIdFromClassName('AdminBanner');
+        if (!$tabId) {
+            $tabId = null;
+        }
+
+        $tab = new Tab($tabId);
+        $tab->active = 1;
+        $tab->class_name = 'AdminBanner';
+        // Only since 1.7.7, you can define a route name
+        //$tab->route_name = 'admin_my_symfony_routing';
+        $tab->name = array();
+        foreach (Language::getLanguages() as $lang) {
+            $tab->name[$lang['id_lang']] = $this->l('Banner Demo');
+        }
+        $tab->id_parent = (int) Tab::getIdFromClassName('ShopParameters');
+        $tab->module = $this->name;
+
+        return $tab->save();
+    }
+
+    private function uninstallTab()
+    {
+        $tabId = (int) Tab::getIdFromClassName('AdminBanner');
+        if (!$tabId) {
+            return true;
+        }
+
+        $tab = new Tab($tabId);
+
+        return $tab->delete();
+    }
+
+
+    public function getFormConfirm($email, $telephone){
+        $html = '<ol>';
+        $html .= '<li>'.$email.'</li>';
+        $html .= '<li>'.$telephone.'</li>';
+        $html .='</ol>';
+
+
+        return $html;
+
     }
 
 }
